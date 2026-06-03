@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <!-- LUDIS_FLASH_TRANSITION_V9 적용됨 -->
+  <!-- LUDIS_CLEAN_ROOT_URL_V7 적용됨 -->
+  <!-- LUDIS_FOLDER_ENTRY_V6 적용됨 -->
+  <!-- LUDIS_FOLDER_ENTRY_V5 적용됨 -->
+  <!-- LUDIS_FOLDER_ENTRY_V5 적용됨 -->
+  <!-- LUDIS_FOLDER_ENTRY_V5 적용됨 -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>루디스</title>
+
+  <script>
+    // LUDIS_CLEAN_INDEX_HTML_URL_V7
+    // 주소창에 /index.html 이 보이면 화면 이동 없이 / 로 깔끔하게 정리합니다.
+    (function(){
+      try {
+        var path = window.location.pathname || "";
+        if (path.endsWith("/index.html")) {
+          var cleanPath = path.replace(/index\.html$/, "");
+          window.history.replaceState(null, document.title, cleanPath + window.location.search + window.location.hash);
+        }
+      } catch (err) {}
+    })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --text: #111827;
+      --muted: #64748b;
+      --line: #dbe3f0;
+      --accent: #635bff;
+      --accent2: #00a2ff;
+      --good: #10b981;
+      --shadow: 0 24px 80px rgba(30,41,59,.16);
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .hidden { display: none !important; }
+
+    .entry-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 22px;
+      background:
+        radial-gradient(circle at 10% 5%, rgba(99,91,255,.22), transparent 34%),
+        radial-gradient(circle at 90% 15%, rgba(0,162,255,.18), transparent 34%),
+        linear-gradient(135deg, #eef2ff 0%, #f8fbff 52%, #e7f7ff 100%);
+    }
+
+    .entry-center {
+      min-height: calc(100dvh - 44px);
+      display: grid;
+      place-items: center;
+    }
+
+    .entry-card {
+      width: min(480px, 100%);
+      background: rgba(255,255,255,.94);
+      border: 1px solid rgba(148,163,184,.30);
+      box-shadow: var(--shadow);
+      border-radius: 28px;
+      padding: 28px;
+      animation: cardIn .55s cubic-bezier(.2,.75,.2,1) both;
+    }
+
+    .logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 30px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 14px 30px rgba(99,91,255,.25);
+      margin-bottom: 16px;
+      animation: diceFloat 3.2s ease-in-out infinite;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      letter-spacing: -.06em;
+      line-height: 1.1;
+      font-weight: 1000;
+    }
+
+    .desc {
+      margin: 14px 0 18px;
+      color: var(--muted);
+      line-height: 1.58;
+      font-size: 15px;
+      word-break: keep-all;
+    }
+
+    .actions {
+      display: grid;
+      gap: 9px;
+      margin-top: 14px;
+    }
+
+    .entry-btn {
+      width: 100%;
+      min-height: 52px;
+      border: 0;
+      border-radius: 16px;
+      padding: 0 16px;
+      font-weight: 1000;
+      font-size: 15px;
+      appearance: none;
+      -webkit-appearance: none;
+      transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
+    }
+
+    .entry-btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.02);
+    }
+
+    .entry-btn:active {
+      transform: translateY(1px) scale(.99);
+    }
+
+    .entry-btn.free,
+    .entry-btn.vip {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(99,91,255,.22);
+    }
+
+    .entry-btn.restore {
+      background: #fff;
+      color: #111827;
+      border: 1px solid var(--line);
+    }
+
+    .entry-btn.download {
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(16,185,129,.18);
+    }
+
+    .note,
+    .app-note {
+      margin-top: 12px;
+      border-radius: 18px;
+      padding: 14px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: #475569;
+    }
+
+    .note {
+      border: 1px solid rgba(99,91,255,.18);
+      background: rgba(99,91,255,.07);
+    }
+
+    .app-note {
+      border: 1px solid rgba(0,162,255,.20);
+      background: rgba(0,162,255,.07);
+    }
+
+    .note b,
+    .app-note b {
+      color: #111827;
+    }
+
+    .entry-screen.leaving {
+      pointer-events: none;
+      animation: screenOut .30s ease both;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding: 22px;
+      background: rgba(15,23,42,.58);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .auth-box {
+      width: min(430px, calc(100vw - 32px));
+      background: rgba(255,255,255,.98);
+      border: 1px solid rgba(148,163,184,.35);
+      border-radius: 26px;
+      box-shadow: 0 30px 90px rgba(15,23,42,.34);
+      padding: 24px;
+      color: #111827;
+      animation: cardIn .28s ease both;
+    }
+
+    .auth-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+
+    .auth-head h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+      letter-spacing: -.04em;
+      font-weight: 1000;
+    }
+
+    .auth-head p {
+      margin: 7px 0 0;
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .close {
+      width: 40px;
+      height: 40px;
+      flex: 0 0 40px;
+      border-radius: 15px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #111827;
+      font-size: 22px;
+      font-weight: 900;
+      cursor: pointer;
+      line-height: 1;
+      display: grid;
+      place-items: center;
+      padding: 0;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      font-size: 12px;
+      font-weight: 900;
+      color: #64748b;
+    }
+
+    .field input {
+      width: 100%;
+      min-height: 50px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #111827;
+      border-radius: 16px;
+      padding: 0 15px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .field input:focus {
+      border-color: rgba(99,91,255,.75);
+      box-shadow: 0 0 0 4px rgba(99,91,255,.13);
+    }
+
+    .message {
+      margin: 10px 0 0;
+      border-radius: 15px;
+      padding: 12px 13px;
+      font-size: 13px;
+      line-height: 1.45;
+      border: 1px solid rgba(239,68,68,.25);
+      background: rgba(239,68,68,.08);
+      color: #b91c1c;
+      font-weight: 800;
+    }
+
+    .message.ok {
+      border-color: rgba(16,185,129,.25);
+      background: rgba(16,185,129,.10);
+      color: #047857;
+    }
+
+    .auth-actions {
+      display: grid;
+      grid-template-columns: 1fr 90px;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(16px) scale(.975); filter: blur(3px); }
+      to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    }
+
+    @keyframes screenOut {
+      from { opacity: 1; transform: scale(1); filter: blur(0); }
+      to { opacity: 0; transform: scale(.985); filter: blur(4px); }
+    }
+
+    @keyframes diceFloat {
+      0%, 100% { transform: translateY(0) rotate(0); }
+      50% { transform: translateY(-5px) rotate(-3deg); }
+    }
+
+    @media (max-width: 520px) {
+      .entry-screen { padding: 14px; }
+      .entry-center { min-height: calc(100dvh - 28px); }
+      .entry-card, .auth-box { padding: 20px; border-radius: 22px; }
+      .auth-actions { grid-template-columns: 1fr; }
+    }
+
+    /* LUDIS_SPLIT_ENTRY_ANIMATION_V2
+       첫 입장 전용 애니메이션 강화
+       유저 공지 주소는 기존 루트 주소 그대로 사용합니다.
+    */
+
+    .entry-screen::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(99,91,255,.16), transparent 22rem),
+        radial-gradient(circle at 82% 18%, rgba(0,162,255,.13), transparent 20rem),
+        radial-gradient(circle at 50% 86%, rgba(16,185,129,.08), transparent 23rem);
+      animation: ludisEntryGlowV2 9s ease-in-out infinite alternate;
+    }
+
+    .entry-screen::after {
+      content: "⚀  ⚁  ⚂  ⚃  ⚄  ⚅";
+      position: fixed;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      pointer-events: none;
+      user-select: none;
+      white-space: nowrap;
+      color: rgba(99,91,255,.07);
+      font-size: clamp(42px, 8vw, 110px);
+      letter-spacing: .22em;
+      animation: ludisDiceCloudV2 14s ease-in-out infinite alternate;
+    }
+
+    .entry-card {
+      position: relative;
+      z-index: 1;
+      animation: ludisEntryCardV2 .72s cubic-bezier(.2,.75,.2,1) both !important;
+    }
+
+    .entry-card::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      border-radius: 28px;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(99,91,255,.28), rgba(0,162,255,.18), rgba(16,185,129,.14));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+      opacity: .82;
+    }
+
+    .logo {
+      position: relative;
+      overflow: hidden;
+      animation: ludisLogoPopV2 .72s cubic-bezier(.2,.75,.2,1) both, diceFloat 3.2s ease-in-out infinite .8s !important;
+    }
+
+    .logo::after {
+      content: "";
+      position: absolute;
+      inset: -48%;
+      background: linear-gradient(120deg, transparent 34%, rgba(255,255,255,.52), transparent 66%);
+      transform: translateX(-135%) rotate(14deg);
+      animation: ludisLogoShineV2 4.2s ease-in-out infinite 1.2s;
+      pointer-events: none;
+    }
+
+    .entry-card h1,
+    .entry-card .desc,
+    .entry-card .actions,
+    .entry-card .note,
+    .entry-card .app-note {
+      animation: ludisEntryItemV2 .54s cubic-bezier(.2,.75,.2,1) both;
+    }
+
+    .entry-card h1 { animation-delay: .08s; }
+    .entry-card .desc { animation-delay: .15s; }
+    .entry-card .actions { animation-delay: .22s; }
+    .entry-card .note { animation-delay: .29s; }
+    .entry-card .app-note { animation-delay: .36s; }
+
+    .entry-screen.leaving {
+      pointer-events: none;
+      animation: ludisScreenOutV2 .34s cubic-bezier(.2,.75,.2,1) both !important;
+    }
+
+    .entry-btn {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .entry-btn.free::after,
+    .entry-btn.vip::after,
+    .entry-btn.download::after {
+      content: "";
+      position: absolute;
+      top: -80%;
+      left: -90%;
+      width: 70%;
+      height: 240%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,.30), transparent);
+      transform: rotate(16deg);
+      transition: left .55s ease;
+      pointer-events: none;
+    }
+
+    .entry-btn.free:hover::after,
+    .entry-btn.vip:hover::after,
+    .entry-btn.download:hover::after {
+      left: 120%;
+    }
+
+    @keyframes ludisEntryGlowV2 {
+      from { opacity: .72; transform: scale(1); }
+      to { opacity: 1; transform: scale(1.035); }
+    }
+
+    @keyframes ludisDiceCloudV2 {
+      from { opacity: .65; transform: translateX(-50%) translateY(0); }
+      to { opacity: 1; transform: translateX(-50%) translateY(-10px); }
+    }
+
+    @keyframes ludisEntryCardV2 {
+      0% { opacity: 0; transform: translateY(24px) scale(.96); filter: blur(5px); }
+      70% { opacity: 1; transform: translateY(-3px) scale(1.01); filter: blur(0); }
+      100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    }
+
+    @keyframes ludisLogoPopV2 {
+      0% { opacity: 0; transform: translateY(10px) rotate(-12deg) scale(.72); }
+      68% { opacity: 1; transform: translateY(-4px) rotate(6deg) scale(1.08); }
+      100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+    }
+
+    @keyframes ludisLogoShineV2 {
+      0%, 62% { transform: translateX(-135%) rotate(14deg); }
+      80%, 100% { transform: translateX(135%) rotate(14deg); }
+    }
+
+    @keyframes ludisEntryItemV2 {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes ludisScreenOutV2 {
+      from { opacity: 1; transform: scale(1); filter: blur(0); }
+      to { opacity: 0; transform: scale(.982); filter: blur(5px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .entry-screen::before,
+      .entry-screen::after,
+      .entry-card,
+      .logo,
+      .logo::after,
+      .entry-card h1,
+      .entry-card .desc,
+      .entry-card .actions,
+      .entry-card .note,
+      .entry-card .app-note,
+      .entry-screen.leaving {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+
+
+    /* LUDIS_PAGE_TRANSITION_V6
+       첫 화면 → /ludis/ 이동 전 화면전환 애니메이션
+       기존 입장 애니메이션은 유지하고, 전환 오버레이만 추가합니다.
+    */
+    .page-transition {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(99,91,255,.30), transparent 28rem),
+        radial-gradient(circle at 75% 28%, rgba(0,162,255,.24), transparent 26rem),
+        linear-gradient(135deg, rgba(238,242,255,.98), rgba(248,251,255,.98));
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .24s ease, visibility .24s ease;
+    }
+
+    .page-transition.show {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: all;
+    }
+
+    .transition-box {
+      width: min(360px, calc(100vw - 48px));
+      border-radius: 28px;
+      border: 1px solid rgba(148,163,184,.28);
+      background: rgba(255,255,255,.88);
+      box-shadow: 0 28px 90px rgba(30,41,59,.18);
+      padding: 26px 22px;
+      text-align: center;
+      animation: transitionBoxInV6 .34s cubic-bezier(.2,.75,.2,1) both;
+    }
+
+    .transition-dice {
+      width: 70px;
+      height: 70px;
+      margin: 0 auto 14px;
+      border-radius: 24px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #635bff, #00a2ff);
+      color: white;
+      font-size: 34px;
+      box-shadow: 0 18px 42px rgba(99,91,255,.26);
+      animation: transitionDiceRollV6 .72s cubic-bezier(.2,.75,.2,1) infinite alternate;
+    }
+
+    .transition-title {
+      font-size: 20px;
+      font-weight: 1000;
+      letter-spacing: -.04em;
+      color: #111827;
+    }
+
+    .transition-sub {
+      margin-top: 6px;
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .transition-bar {
+      position: relative;
+      overflow: hidden;
+      height: 8px;
+      margin: 18px auto 0;
+      border-radius: 999px;
+      background: rgba(99,91,255,.12);
+    }
+
+    .transition-bar::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: 44%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #635bff, #00a2ff);
+      animation: transitionBarMoveV6 .88s ease-in-out infinite;
+    }
+
+    @keyframes transitionBoxInV6 {
+      from { opacity: 0; transform: translateY(12px) scale(.96); filter: blur(3px); }
+      to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    }
+
+    @keyframes transitionDiceRollV6 {
+      0% { transform: translateY(0) rotate(-8deg) scale(1); }
+      100% { transform: translateY(-5px) rotate(9deg) scale(1.05); }
+    }
+
+    @keyframes transitionBarMoveV6 {
+      0% { transform: translateX(-110%); }
+      100% { transform: translateX(240%); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .transition-box,
+      .transition-dice,
+      .transition-bar::before {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+
+
+    /* LUDIS_FLASH_TRANSITION_ONLY_V9
+       첫 입장 화면 디자인은 그대로 유지
+       화면전환 애니메이션만 더 화려하게 변경
+       Windows 앱 버튼 이모지만 토끼로 변경
+    */
+
+    .page-transition {
+      background:
+        radial-gradient(circle at 22% 18%, rgba(99,91,255,.48), transparent 26rem),
+        radial-gradient(circle at 80% 24%, rgba(0,162,255,.38), transparent 25rem),
+        radial-gradient(circle at 52% 92%, rgba(16,185,129,.18), transparent 27rem),
+        linear-gradient(135deg, rgba(8,11,29,.985), rgba(11,18,42,.985) 48%, rgba(5,20,31,.985)) !important;
+      overflow: hidden;
+    }
+
+    .page-transition::before,
+    .page-transition::after {
+      content: "";
+      position: absolute;
+      inset: -20%;
+      pointer-events: none;
+    }
+
+    .page-transition::before {
+      background:
+        linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+      background-size: 44px 44px;
+      transform: perspective(700px) rotateX(58deg) translateY(8%);
+      transform-origin: center bottom;
+      animation: ludisTunnelGridV9 1.05s linear infinite;
+      opacity: .72;
+    }
+
+    .page-transition::after {
+      background:
+        conic-gradient(from 0deg, transparent, rgba(99,91,255,.18), transparent, rgba(0,162,255,.16), transparent);
+      filter: blur(8px);
+      animation: ludisPortalSpinV9 1.15s linear infinite;
+      opacity: .75;
+    }
+
+    .transition-box {
+      position: relative;
+      z-index: 2;
+      width: min(390px, calc(100vw - 48px)) !important;
+      border-radius: 32px !important;
+      border: 1px solid rgba(255,255,255,.18) !important;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.06)) !important;
+      box-shadow:
+        0 32px 110px rgba(0,0,0,.42),
+        0 0 0 1px rgba(99,91,255,.18),
+        0 0 70px rgba(0,162,255,.20) !important;
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      overflow: hidden;
+      animation: ludisTransitionBoxV9 .42s cubic-bezier(.2,.75,.2,1) both !important;
+    }
+
+    .transition-box::before {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      background: linear-gradient(120deg, transparent 20%, rgba(255,255,255,.22), transparent 46%);
+      transform: translateX(-120%) rotate(8deg);
+      animation: ludisTransitionShineV9 1.15s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    .transition-dice {
+      width: 86px !important;
+      height: 86px !important;
+      border-radius: 28px !important;
+      margin-bottom: 16px !important;
+      background:
+        radial-gradient(circle at 28% 20%, rgba(255,255,255,.42), transparent 25%),
+        linear-gradient(135deg, #7c3aed, #2563eb 50%, #06b6d4) !important;
+      box-shadow:
+        0 22px 62px rgba(99,91,255,.38),
+        0 0 44px rgba(0,162,255,.28) !important;
+      font-size: 40px !important;
+      animation: ludisDiceRollFlashV9 .54s cubic-bezier(.2,.75,.2,1) infinite alternate !important;
+    }
+
+    .transition-title {
+      color: #ffffff !important;
+      font-size: 22px !important;
+      letter-spacing: -.045em;
+      text-shadow: 0 12px 36px rgba(0,0,0,.34);
+    }
+
+    .transition-sub {
+      color: rgba(203,213,225,.84) !important;
+      font-weight: 800 !important;
+    }
+
+    .transition-bar {
+      height: 9px !important;
+      background: rgba(255,255,255,.10) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+    }
+
+    .transition-bar::before {
+      width: 48% !important;
+      background: linear-gradient(90deg, #7c3aed, #00a2ff, #10b981) !important;
+      box-shadow: 0 0 22px rgba(0,162,255,.38);
+      animation: ludisTransitionBarFlashV9 .72s ease-in-out infinite !important;
+    }
+
+    .transition-spark {
+      position: absolute;
+      z-index: 1;
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.82);
+      box-shadow: 0 0 18px rgba(255,255,255,.72);
+      pointer-events: none;
+      animation: ludisSparkFlyV9 .9s ease-in-out infinite;
+    }
+
+    .transition-spark.s1 { left: 18%; top: 22%; animation-delay: 0s; }
+    .transition-spark.s2 { right: 20%; top: 28%; animation-delay: .13s; }
+    .transition-spark.s3 { left: 26%; bottom: 24%; animation-delay: .26s; }
+    .transition-spark.s4 { right: 28%; bottom: 18%; animation-delay: .39s; }
+
+    @keyframes ludisTunnelGridV9 {
+      from { background-position: 0 0, 0 0; }
+      to { background-position: 0 44px, 44px 0; }
+    }
+
+    @keyframes ludisPortalSpinV9 {
+      to { transform: rotate(360deg) scale(1.03); }
+    }
+
+    @keyframes ludisTransitionBoxV9 {
+      0% { opacity: 0; transform: translateY(18px) scale(.94); filter: blur(6px); }
+      72% { opacity: 1; transform: translateY(-4px) scale(1.018); filter: blur(0); }
+      100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    }
+
+    @keyframes ludisTransitionShineV9 {
+      0%, 35% { transform: translateX(-125%) rotate(8deg); }
+      80%, 100% { transform: translateX(125%) rotate(8deg); }
+    }
+
+    @keyframes ludisDiceRollFlashV9 {
+      0% { transform: translateY(0) rotate(-14deg) scale(1); }
+      100% { transform: translateY(-7px) rotate(16deg) scale(1.07); }
+    }
+
+    @keyframes ludisTransitionBarFlashV9 {
+      0% { transform: translateX(-115%); }
+      100% { transform: translateX(235%); }
+    }
+
+    @keyframes ludisSparkFlyV9 {
+      0% { opacity: 0; transform: translateY(14px) scale(.65); }
+      35% { opacity: 1; }
+      100% { opacity: 0; transform: translateY(-22px) scale(1.25); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .page-transition::before,
+      .page-transition::after,
+      .transition-box,
+      .transition-box::before,
+      .transition-dice,
+      .transition-bar::before,
+      .transition-spark {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <main id="entryScreen" class="entry-screen">
+    <div class="entry-center">
+      <section class="entry-card">
+        <div class="logo">🎲</div>
+        <h1>루디스</h1>
+        <p class="desc">
+          코드 없이도 수동 기록 기능을 바로 사용할 수 있습니다.<br>
+          이용권을 인증하면 자동저장 · 거래주의 조회 · 다음판 예상확률 기능이 열립니다.
+        </p>
+
+        <div class="actions">
+          <button class="entry-btn free" type="button" onclick="startFreeMode()">🎲 무료로 시작하기</button>
+          <button class="entry-btn vip" type="button" onclick="openAuthModal('auth')">👑 VIP 인증하기</button>
+          <button class="entry-btn restore" type="button" onclick="openAuthModal('restore')">🔄 사용 이전</button>
+          <button class="entry-btn download" type="button" onclick="downloadWindowsApp()">🐰 Windows 앱 다운로드</button>
+        </div>
+
+        <div class="note">
+          <b>기존 구매 고객 안내</b><br>
+          기존 구매 고객은 <b>사용 이전</b> 버튼을 눌러 닉네임과 이용권 코드를 입력하면 새 브라우저/앱에서 이어서 사용할 수 있습니다.<br>
+          인증 정보는 현재 브라우저/앱에 저장됩니다.
+        </div>
+
+        <div class="app-note">
+          <b>🖥️ Windows 앱 안내</b><br>
+          앱 설치 후 바탕화면 아이콘으로 루디스를 실행할 수 있습니다.<br>
+          기존 이용권 사용자는 앱에서도 사용 이전 후 그대로 이용할 수 있습니다.
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="pageTransition" class="page-transition" aria-hidden="true">
+    <span class="transition-spark s1"></span>
+    <span class="transition-spark s2"></span>
+    <span class="transition-spark s3"></span>
+    <span class="transition-spark s4"></span>
+    <div class="transition-box">
+      <div class="transition-dice">🎲</div>
+      <div class="transition-title">LUDIS 입장 중</div>
+      <div class="transition-sub">오늘의 기록판을 불러오고 있습니다.</div>
+      <div class="transition-bar"></div>
+    </div>
+  </div>
+
+  <section id="authModal" class="modal hidden">
+    <div class="auth-box">
+      <div class="auth-head">
+        <div>
+          <h2 id="authTitle">VIP 인증하기</h2>
+          <p id="authDesc">닉네임과 이용권 코드를 입력해 주세요.</p>
+        </div>
+        <button class="close" type="button" onclick="closeAuthModal()" aria-label="닫기">×</button>
+      </div>
+
+      <div class="field">
+        <label for="nicknameInput">닉네임 입력</label>
+        <input id="nicknameInput" autocomplete="nickname" placeholder="예: 도비">
+      </div>
+
+      <div class="field">
+        <label for="codeInput">이용권 코드</label>
+        <input id="codeInput" autocomplete="off" placeholder="예: DOBI-A91F-2BC8-77E0">
+      </div>
+
+      <div id="authMessage" class="message hidden"></div>
+
+      <div class="auth-actions">
+        <button id="authSubmit" class="entry-btn vip" type="button" onclick="submitAuth()">👑 인증하기</button>
+        <button class="entry-btn restore" type="button" onclick="closeAuthModal()">닫기</button>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    const SUPABASE_URL = "https://jnjfzmbzuucwpuepahtz.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_j1ykY1_no66Xmv86OV94xA_ezRqRKqM";
+    const LUDIS_WINDOWS_APP_DOWNLOAD_URL = "https://github.com/proof010221-creator/proof/releases/latest/download/LudisSetup.exe";
+
+    const ACCESS_KEY = "dobi_access_ok_v1";
+    const ACCESS_ID_KEY = "dobi_access_id_v1";
+    const ACCESS_EXPIRES_KEY = "dobi_access_expires_at_v1";
+    const ACCESS_TIER_KEY = "ludis_access_tier_v1";
+    const DEVICE_KEY = "dobi_device_id_v1";
+    const FREE_STARTED_KEY = "ludis_free_started_v1";
+
+    let authMode = "auth";
+    let sb = null;
+
+    function isSupabaseConfigured() {
+      return SUPABASE_URL.startsWith("https://") &&
+        !SUPABASE_URL.includes("YOUR-PROJECT") &&
+        SUPABASE_ANON_KEY &&
+        !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE");
+    }
+
+    if (isSupabaseConfigured() && window.supabase) {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+
+    function getDeviceId() {
+      let id = localStorage.getItem(DEVICE_KEY);
+      if (!id) {
+        id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+        localStorage.setItem(DEVICE_KEY, id);
+      }
+      return id;
+    }
+
+    function hasStoredVipAccess() {
+      try {
+        const okValues = ["1", "true", "vip"];
+        const hasOk =
+          okValues.includes(String(localStorage.getItem("dobi_access_ok_v1"))) ||
+          okValues.includes(String(localStorage.getItem("ludis_access_ok_v1"))) ||
+          localStorage.getItem("ludis_access_tier_v1") === "vip";
+
+        const hasId = Boolean(localStorage.getItem("dobi_access_id_v1") || localStorage.getItem("ludis_access_id_v1"));
+        const expires = localStorage.getItem("dobi_access_expires_at_v1") || localStorage.getItem("ludis_access_expires_at_v1");
+        const notExpired = !expires || expires === "null" || expires === "무제한" || new Date(expires).getTime() > Date.now();
+
+        return (hasOk || hasId) && notExpired;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    function goApp(mode) {
+      const screen = document.getElementById("entryScreen");
+      const transition = document.getElementById("pageTransition");
+
+      if (screen) screen.classList.add("leaving");
+
+      // mode 값은 URL에 표시하지 않습니다.
+      // 무료/VIP 상태는 URL이 아니라 localStorage와 Supabase 인증값으로 판단합니다.
+      try {
+        sessionStorage.setItem("ludis_last_entry_mode_v1", mode || "free");
+      } catch (err) {}
+
+      if (transition) {
+        transition.classList.add("show");
+        transition.setAttribute("aria-hidden", "false");
+      }
+
+      setTimeout(() => {
+        location.href = "ludis/";
+      }, 720);
+    }
+
+    function startFreeMode() {
+      try {
+        localStorage.setItem(FREE_STARTED_KEY, "true");
+        localStorage.setItem(ACCESS_TIER_KEY, "free");
+        localStorage.removeItem(ACCESS_KEY);
+        localStorage.removeItem(ACCESS_ID_KEY);
+        localStorage.removeItem(ACCESS_EXPIRES_KEY);
+      } catch (err) {}
+      goApp("free");
+    }
+
+    function openAuthModal(mode) {
+      authMode = mode === "restore" ? "restore" : "auth";
+      setMessage("");
+      document.getElementById("authTitle").textContent = authMode === "restore" ? "사용 이전" : "VIP 인증하기";
+      document.getElementById("authDesc").textContent = authMode === "restore"
+        ? "기존에 사용하던 이용권 코드를 새 브라우저/앱으로 이전합니다."
+        : "닉네임과 이용권 코드를 입력해 VIP 기능을 활성화합니다.";
+      document.getElementById("authSubmit").textContent = authMode === "restore" ? "🔄 사용 이전하기" : "👑 VIP 인증하기";
+
+      try {
+        const nick = localStorage.getItem("dobi_last_nickname_v1") || localStorage.getItem("ludis_last_nickname_v1") || "";
+        if (nick && !document.getElementById("nicknameInput").value) document.getElementById("nicknameInput").value = nick;
+      } catch (err) {}
+
+      document.getElementById("authModal").classList.remove("hidden");
+      setTimeout(() => document.getElementById("nicknameInput")?.focus(), 40);
+    }
+
+    function closeAuthModal() {
+      document.getElementById("authModal").classList.add("hidden");
+    }
+
+    function setMessage(message, ok = false) {
+      const box = document.getElementById("authMessage");
+      box.textContent = message || "";
+      box.classList.toggle("hidden", !message);
+      box.classList.toggle("ok", Boolean(ok));
+    }
+
+    function saveAccess(data) {
+      localStorage.setItem(ACCESS_KEY, "1");
+      localStorage.setItem(ACCESS_TIER_KEY, "vip");
+      if (data.access_id) localStorage.setItem(ACCESS_ID_KEY, data.access_id);
+      if (data.expires_at) localStorage.setItem(ACCESS_EXPIRES_KEY, data.expires_at);
+      else localStorage.removeItem(ACCESS_EXPIRES_KEY);
+      localStorage.setItem(FREE_STARTED_KEY, "true");
+    }
+
+    async function submitAuth() {
+      const nickname = document.getElementById("nicknameInput").value.trim();
+      const code = document.getElementById("codeInput").value.trim();
+      const submit = document.getElementById("authSubmit");
+
+      if (!nickname) {
+        setMessage("닉네임을 입력해 주세요.");
+        document.getElementById("nicknameInput").focus();
+        return;
+      }
+
+      if (!code) {
+        setMessage("이용권 코드를 입력해 주세요.");
+        document.getElementById("codeInput").focus();
+        return;
+      }
+
+      if (!sb) {
+        setMessage("인증 서버 설정을 확인할 수 없습니다. 고객센터로 문의해 주세요.");
+        return;
+      }
+
+      try {
+        localStorage.setItem("dobi_last_nickname_v1", nickname);
+        localStorage.setItem("ludis_last_nickname_v1", nickname);
+      } catch (err) {}
+
+      submit.disabled = true;
+      submit.textContent = authMode === "restore" ? "이전 중..." : "인증 중...";
+      setMessage("");
+
+      try {
+        const fn = authMode === "restore" ? "restore_access_code" : "redeem_access_code";
+        const { data, error } = await sb.rpc(fn, {
+          p_code: code,
+          p_device: getDeviceId(),
+          p_nickname: nickname,
+          p_user_agent: navigator.userAgent
+        });
+
+        if (error) throw error;
+
+        if (data && data.ok) {
+          saveAccess(data);
+          setMessage(authMode === "restore" ? "사용 이전이 완료되었습니다. 메인 화면으로 이동합니다." : "인증이 완료되었습니다. 메인 화면으로 이동합니다.", true);
+          setTimeout(() => goApp("vip"), 650);
+        } else {
+          setMessage((data && data.message) || "처리에 실패했습니다. 닉네임과 이용권 코드를 다시 확인해 주세요.");
+        }
+      } catch (err) {
+        console.error("루디스 인증 오류:", err);
+        setMessage("처리 중 오류가 발생했습니다. 코드를 다시 확인하거나 고객센터로 문의해 주세요.");
+      } finally {
+        submit.disabled = false;
+        submit.textContent = authMode === "restore" ? "🔄 사용 이전하기" : "👑 VIP 인증하기";
+      }
+    }
+
+    function downloadWindowsApp() {
+      const url = String(LUDIS_WINDOWS_APP_DOWNLOAD_URL || "").trim();
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "LudisSetup.exe";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      if (hasStoredVipAccess() || localStorage.getItem(FREE_STARTED_KEY) === "true") {
+        location.replace("ludis.html");
+        return;
+      }
+
+      document.getElementById("codeInput")?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") submitAuth();
+      });
+      document.getElementById("nicknameInput")?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") document.getElementById("codeInput")?.focus();
+      });
+    });
+  </script>
+</body>
+</html>
