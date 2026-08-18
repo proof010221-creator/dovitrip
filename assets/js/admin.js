@@ -13,6 +13,7 @@
   let eventClaimsData = [];
   let blacklistRows = [];
   let bulkBlacklistPreviewRows = [];
+  const BLACKLIST_PARSER_VERSION = "3.2.0";
   let adminLoginLogsData = [];
   let adminBlockedIpsData = [];
   let cachedAdminIpInfo = null;
@@ -1317,6 +1318,121 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
     return { key, value: stripBulkMarkdown(m[2] || "") };
   }
 
+
+  function parseBlackAlertHeaderBlocks(rawText) {
+    // 블랙알리미 원문에서 각 "닉네임 (번호번) 블랙리스트 등재 · 피해규모" 제목을
+    // 사건 경계로 사용한다. 여러 건을 통째로 붙여넣었을 때 라벨 파서가 한 건으로
+    // 뭉치는 상황을 막기 위한 가장 강한 분리 규칙이다.
+    const lines = String(rawText || "")
+      .replace(/\r\n?/g, "\n")
+      .replace(/\u00A0/g, " ")
+      .split("\n")
+      .map(stripBulkMarkdown)
+      .filter(Boolean);
+
+    const headerRe = /^(?:@블랙알림\s*)?(.+?)\s*\(\s*([0-9]{1,20})\s*번?\s*\)\s*블랙리스트\s*등재(?:\s*[·\-–—]\s*(.+))?$/i;
+    const starts = [];
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(headerRe);
+      if (m) starts.push({ index:i, match:m });
+    }
+    if (!starts.length) return [];
+
+    const rows = [];
+    for (let sIndex = 0; sIndex < starts.length; sIndex++) {
+      const start = starts[sIndex];
+      const end = sIndex + 1 < starts.length ? starts[sIndex + 1].index : lines.length;
+      const block = lines.slice(start.index, end);
+      const header = start.match;
+      const report = {
+        offenderNickname: stripBulkMarkdown(header[1] || ""),
+        offenderNumber: String(header[2] || "").replace(/\D/g, ""),
+        damageAmount: normalizeBulkAmount(header[3] || ""),
+        publicReason: "",
+        registrationDate: ""
+      };
+
+      let pending = "";
+      let victimValueConsumed = false;
+      let sawVictimLabel = false;
+
+      for (let i = 1; i < block.length; i++) {
+        const line = block[i];
+        if (/^프리덤\s*블랙리스트\s*등재$/i.test(line)) continue;
+        if (/블랙알리미앱/i.test(line)) continue;
+
+        const label = getFreedomLabel(line);
+        if (label) {
+          if (label.key === "offender") {
+            if (label.value) {
+              const person = parseBlacklistPerson(label.value);
+              if (person.nickname) report.offenderNickname = person.nickname;
+              if (person.userNumber) report.offenderNumber = person.userNumber;
+              pending = "";
+            } else {
+              pending = "offender";
+            }
+          } else if (label.key === "damage") {
+            if (label.value) {
+              report.damageAmount = normalizeBulkAmount(label.value);
+              pending = "";
+            } else {
+              pending = "damage";
+            }
+          } else if (label.key === "reason") {
+            if (label.value) {
+              report.publicReason = stripBulkMarkdown(label.value);
+              pending = "";
+            } else {
+              pending = "reason";
+            }
+          } else if (label.key === "victim") {
+            // 피해자 값은 저장하지 않고, 피해자 다음에 나오는 첫 날짜만 원문 등록일로 사용한다.
+            sawVictimLabel = true;
+            victimValueConsumed = !!label.value;
+            pending = label.value ? "" : "victim";
+          }
+          continue;
+        }
+
+        if (pending === "offender") {
+          const person = parseBlacklistPerson(line);
+          if (person.nickname) report.offenderNickname = person.nickname;
+          if (person.userNumber) report.offenderNumber = person.userNumber;
+          pending = "";
+          continue;
+        }
+        if (pending === "damage") {
+          report.damageAmount = normalizeBulkAmount(line);
+          pending = "";
+          continue;
+        }
+        if (pending === "reason") {
+          report.publicReason = stripBulkMarkdown(line);
+          pending = "";
+          continue;
+        }
+        if (pending === "victim") {
+          // 피해자 이름/번호는 위치 확인용으로만 소비하고 저장하지 않는다.
+          pending = "";
+          victimValueConsumed = true;
+          continue;
+        }
+
+        const registrationDate = extractBulkRegistrationDate(line);
+        if (registrationDate && !report.registrationDate) {
+          // 정상 원문은 피해자 다음에 등록일이 온다. 피해자 라벨이 유실된 복사본은
+          // 사건 블록 안의 첫 날짜를 보조값으로 사용한다.
+          if (!sawVictimLabel || victimValueConsumed) report.registrationDate = registrationDate;
+        }
+      }
+
+      const row = makeBulkRow(report, "black-alert-header-block");
+      if (row) rows.push(row);
+    }
+    return rows;
+  }
+
   function parseFreedomBlacklistText(rawText) {
     const lines = String(rawText || "")
       .replace(/\r\n?/g, "\n")
@@ -1532,10 +1648,13 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
   }
 
   function parseBulkBlacklistText(rawText) {
+    const headerRows = parseBlackAlertHeaderBlocks(rawText);
     const freedomRows = parseFreedomBlacklistText(rawText);
-    // 블랙알리미의 “가해자 / 피해 규모 / 사유 / 피해자” 형식이 하나라도 잡히면
-    // 느슨한 3~4줄 추정 파서를 섞지 않는다. 날짜·피해자를 닉네임으로 오인하는 것을 막기 위함이다.
-    if (freedomRows.length) return freedomRows.map((row, index) => ({ ...row, previewIndex:index + 1 }));
+
+    // 블랙알리미 복사본은 제목(블랙리스트 등재)과 가해자 라벨을 서로 독립적으로 읽고
+    // 결과를 합친다. 한쪽 파서가 줄바꿈/마크다운 변형 때문에 한 건만 잡아도 다른 쪽이
+    // 전체 사건을 복구할 수 있다. 완전히 같은 사건은 mergeBulkRows에서 한 번만 남긴다.
+    if (headerRows.length || freedomRows.length) return mergeBulkRows(headerRows, freedomRows);
 
     const normalized = normalizeBulkBlacklistText(rawText);
     const keyedRows = parseKeyedBulkBlacklist(normalized);
@@ -1560,7 +1679,7 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
     const withDamage = rows.filter(r => r.itemPrice).length;
     const withDate = rows.filter(r => r.registrationDate).length;
     status.className = "black-paste-status success";
-    status.innerHTML = `<strong>${rows.length.toLocaleString("ko-KR")}건 인식</strong><span>가해자 ${completeCount}건 · 피해 규모 ${withDamage}건 · 등록일자 ${withDate}건 · 피해자 무시</span>`;
+    status.innerHTML = `<strong>${rows.length.toLocaleString("ko-KR")}건 인식</strong><span>가해자 ${completeCount}건 · 피해 규모 ${withDamage}건 · 등록일자 ${withDate}건 · 피해자 무시 · 파서 v${BLACKLIST_PARSER_VERSION}</span>`;
   }
 
   function renderBulkBlacklistPreview(rows, errorMessage="") {
