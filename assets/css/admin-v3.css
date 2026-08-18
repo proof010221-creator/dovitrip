@@ -11,3 +11,64 @@
 input, select, textarea, .actions button, button.primary, button.ghost, button.danger { border-radius: 9px !important; }
 button.primary { box-shadow: 0 4px 12px rgba(57,117,234,.10) !important; }
 .admin-gate-card { border-radius: 16px !important; box-shadow: 0 18px 50px rgba(31,35,40,.10) !important; }
+
+/* v3.1 blacklist paste assistant */
+.black-paste-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:14px;
+}
+.black-paste-head h2{margin-bottom:5px!important}
+.black-paste-badge{
+  flex:none;
+  display:inline-flex;
+  align-items:center;
+  min-height:30px;
+  padding:0 10px;
+  border:1px solid #d9e4f3;
+  border-radius:999px;
+  background:#f5f9ff;
+  color:#36577d;
+  font-size:12px;
+  font-weight:700;
+}
+.black-paste-input{
+  min-height:230px!important;
+  line-height:1.65!important;
+  resize:vertical;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+  font-size:13px!important;
+  background:#fbfcfe!important;
+}
+.black-paste-input:focus{
+  background:#fff!important;
+  border-color:#8eb5ea!important;
+  box-shadow:0 0 0 3px rgba(49,116,211,.10)!important;
+}
+.black-paste-status{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid #e4e8ef;
+  border-radius:10px;
+  background:#f8fafc;
+  color:#667085;
+  font-size:12px;
+}
+.black-paste-status strong{color:#344054;white-space:nowrap}
+.black-paste-status.success{border-color:#cce7d8;background:#f4fbf7;color:#34704d}
+.black-paste-status.success strong{color:#176438}
+.black-paste-status.error{border-color:#f1caca;background:#fff7f7;color:#a43b3b}
+.black-paste-status.error strong{color:#8d2222}
+.black-paste-preview-grid .code-info strong{line-height:1.45}
+.black-paste-preview-card{border-color:#e5e9ef!important;background:#fff!important}
+@media(max-width:720px){
+  .black-paste-head{display:block}
+  .black-paste-badge{margin-top:10px}
+  .black-paste-status{align-items:flex-start;flex-direction:column;gap:3px}
+  .black-paste-input{min-height:280px!important}
+}

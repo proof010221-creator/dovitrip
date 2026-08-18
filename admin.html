@@ -242,44 +242,44 @@
   </section>
 
   <section class="card" data-view="blacklist">
-    <h2>거래주의 일괄 붙여넣기 등록</h2>
-    <div class="small" style="margin-bottom:12px">
-      외부 목록을 사람이 직접 확인한 뒤 그대로 붙여넣고, 미리보기에서 변환 결과를 확인한 다음 일괄 등록하세요. 외부 사이트 자동 조회는 하지 않습니다.
+    <div class="black-paste-head">
+      <div>
+        <h2>블랙리스트 원문 붙여넣기</h2>
+        <div class="small">블랙알리미/디스코드 원문을 그대로 붙여넣으면 가해자, 고유번호, 피해 규모, 사유, 등록일자를 자동으로 읽습니다.</div>
+      </div>
+      <span class="black-paste-badge">피해자 정보는 저장하지 않음</span>
     </div>
-    <textarea id="blackBulkInput" aria-label="거래주의 일괄 등록 원문" placeholder="예시 1)
-칼린
-7280번
-250,000,000,000원
-(2,500억)
+    <textarea id="blackBulkInput" class="black-paste-input" aria-label="블랙리스트 원문 붙여넣기" oninput="scheduleBulkBlacklistPreview()" placeholder="예)
+가해자
+망구 (31845번)
 
-예시 2)
-고유번호: 84 닉네임: 말보루 상태: 위험 사유: 주사위 패배 후 도주 물품/가격: 8000억
+피해 규모
+200억원
 
-예시 3)
-가해자 번호
-59533
-가해자 닉네임
-예잉
-피해자 번호
-49347
-피해자 닉네임
-장꾸
-💰 피해 금액
-30,000,000,000 (300억)
 사유
-주사위 패배 후 종료"></textarea>
+주사위 패배 후 종료
+
+피해자
+종종 (63043번)
+
+※ 위 형식의 마크다운(**굵게**), @블랙알림 문구, 피해자 정보가 섞여 있어도 자동으로 정리합니다. 하단의 등록 일자도 함께 인식하며, 여러 건을 한 번에 붙여넣어도 됩니다."></textarea>
+    <div id="blackBulkParseStatus" class="black-paste-status">
+      <strong>자동 인식 대기</strong>
+      <span>원문을 붙여넣으면 자동으로 미리보기를 생성합니다.</span>
+    </div>
     <div class="actions">
-      <button type="button" class="ghost" onclick="previewBulkBlacklist()">미리보기 변환</button>
-      <button type="button" id="blackBulkRegisterBtn" class="primary" onclick="registerBulkBlacklist()" disabled>미리보기 항목 일괄 등록</button>
+      <button type="button" class="ghost" onclick="previewBulkBlacklist()">다시 분석</button>
+      <button type="button" id="blackBulkRegisterBtn" class="primary" onclick="registerBulkBlacklist()" disabled>인식된 항목 일괄 등록</button>
       <button type="button" class="ghost" onclick="clearBulkBlacklist()">붙여넣기 초기화</button>
     </div>
     <div class="notice" style="margin-top:12px">
-      <b>등록 기준</b><br>
-      가해자 번호/고유번호는 루디스 고유번호로 저장하고, 가해자 닉네임/닉네임은 닉네임으로 저장합니다. 피해자 정보가 있으면 관리자 메모에만 남깁니다.
+      <b>자동 인식 기준</b><br>
+      <b>가해자</b>에서 닉네임과 고유번호를, <b>피해 규모</b>에서 물품/가격을, <b>사유</b>에서 공개 사유를 가져옵니다.
+      <b>피해자</b>는 완전히 무시합니다. 사건 하단의 <b>등록 일자</b>는 자동 인식해 관리자 메모에 원문 등록일로 보존하고, 블랙알리미 제목과 마크다운 기호는 제거합니다.
     </div>
     <div id="blackBulkPreview" class="resultBox">
       <strong>미리보기</strong>
-      <span class="muted">붙여넣기 후 [미리보기 변환]을 누르면 저장될 형식이 표시됩니다.</span>
+      <span class="muted">원문을 붙여넣으면 저장될 항목이 자동으로 표시됩니다.</span>
     </div>
   </section>
 
