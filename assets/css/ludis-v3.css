@@ -1,0 +1,186 @@
+/* LUDIS v3 visual polish — keeps existing structure and user flows, restores the rabbit mascot. */
+:root {
+  --bg: #f6f8fc;
+  --panel: #ffffff;
+  --panel-solid: #ffffff;
+  --text: #20242b;
+  --muted: #6e7784;
+  --line: #e5e9f0;
+  --line-strong: #d8dee8;
+  --accent: #3975ea;
+  --accent2: #3975ea;
+  --good: #19845f;
+  --bad: #c8433d;
+  --warn: #b87a17;
+  --shadow: 0 10px 26px rgba(37, 52, 80, .055), 0 1px 2px rgba(37, 52, 80, .035);
+  --radius: 15px;
+}
+html { background: var(--bg); }
+body {
+  background:
+    radial-gradient(circle at 5% 0%, rgba(230,239,255,.58), rgba(230,239,255,0) 25%),
+    var(--bg) !important;
+}
+body.dark {
+  --bg: #171a20;
+  --panel: #20242b;
+  --panel-solid: #20242b;
+  --text: #f3f5f7;
+  --muted: #aeb5bf;
+  --line: #343a44;
+  --line-strong: #424955;
+  --accent: #79a6ff;
+  --accent2: #79a6ff;
+  --shadow: none;
+}
+.wrap { padding-top: 18px !important; }
+.topbar {
+  min-height: 68px;
+  margin-bottom: 15px !important;
+  padding: 0 2px 14px !important;
+}
+.brand { gap: 11px !important; }
+.logo {
+  width: 40px !important;
+  height: 40px !important;
+  border: 1px solid #f0e3d4 !important;
+  border-radius: 13px !important;
+  background: #fff5e9 !important;
+  color: inherit !important;
+  box-shadow: 0 5px 14px rgba(117,88,45,.06) !important;
+  font-size: 23px !important;
+  font-weight: 400 !important;
+}
+.brand h1 { font-size: 20px !important; font-weight: 780 !important; }
+.subtitle { margin-top: 1px !important; color: #8a93a0 !important; font-size: 11.5px !important; }
+.btn {
+  border-radius: 10px !important;
+  transition: transform .14s ease, background-color .14s ease, border-color .14s ease, box-shadow .14s ease !important;
+}
+.btn:hover { transform: translateY(-1px) !important; }
+.btn.primary { box-shadow: 0 5px 14px rgba(57,117,234,.13) !important; }
+
+.panel {
+  border-color: var(--line) !important;
+  border-radius: 15px !important;
+  box-shadow: var(--shadow) !important;
+}
+.tier-status-panel {
+  border-color: #dde6f6 !important;
+  background: linear-gradient(105deg, #fff, #f8fbff) !important;
+}
+.tier-medal {
+  min-width: 48px;
+  border-radius: 8px !important;
+  border-color: #d8e3f5 !important;
+  background: #f2f6fd !important;
+  color: #5572a0 !important;
+}
+.tier-badge, .compact-badge { border-radius: 8px !important; }
+
+.ultra-top { border-radius: 16px !important; }
+.cumulative-title { padding: 16px 18px 13px !important; }
+.ultra-summary { padding: 8px !important; gap: 8px !important; background: #fbfcfe; }
+.ultra-card {
+  min-height: 94px !important;
+  padding: 15px !important;
+  border: 1px solid transparent !important;
+  border-right: 0 !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+}
+.ultra-card:hover { border-color: #e3e8ef !important; background: #fff !important; }
+body.dark .ultra-summary { background: #1d2026; }
+body.dark .ultra-card { background: #242830 !important; }
+
+.compact-mainboard { gap: 15px !important; }
+.flow-empty, .confidence-box, .next-box, .quick-auto-box, .blacklist-compact {
+  border-radius: 11px !important;
+  background: #f8faff !important;
+}
+.next-box { border-color: #e5eaf1 !important; }
+
+input, select, textarea {
+  border-radius: 10px !important;
+  background: #fff !important;
+}
+.big-actions .btn { border-radius: 11px !important; }
+
+.notice { border-radius: 11px !important; }
+.chart-box { border-top-color: #edf0f4 !important; }
+
+.mini-report-grid { border-radius: 11px !important; }
+.mini-report-item { background: #fff !important; }
+.records { border-top-color: #edf0f4 !important; }
+.record { padding: 13px 5px !important; }
+.record:hover { background: #f8faff !important; }
+.empty {
+  margin-top: 7px;
+  border-radius: 12px !important;
+  background: #fafbfd !important;
+  color: var(--muted) !important;
+}
+.empty::before {
+  content: "🐰";
+  display: block;
+  margin-bottom: 6px;
+  font-size: 24px;
+}
+
+.side-menu { box-shadow: -18px 0 52px rgba(25,34,50,.14) !important; }
+.menu-head { padding: 20px 22px !important; }
+.menu-tabs { padding: 0 22px !important; }
+.menu-body { padding: 20px 22px 30px !important; background: #f6f8fb !important; }
+.menu-card { border-radius: 13px !important; box-shadow: 0 4px 13px rgba(37,52,80,.035) !important; }
+
+.ludis-start-screen, .lock-wrap {
+  background:
+    radial-gradient(circle at 50% 5%, rgba(231,239,255,.72), rgba(231,239,255,0) 32%),
+    var(--bg) !important;
+}
+.ludis-start-card, .lock-card {
+  border-radius: 20px !important;
+  box-shadow: 0 22px 60px rgba(37,52,80,.11) !important;
+}
+.ludis-start-logo, .lock-logo {
+  width: 54px !important;
+  height: 54px !important;
+  border: 1px solid #f0e3d4 !important;
+  border-radius: 17px !important;
+  background: #fff5e9 !important;
+  color: inherit !important;
+  box-shadow: 0 7px 18px rgba(117,88,45,.07) !important;
+  font-size: 31px !important;
+  font-weight: 400 !important;
+}
+.ludis-start-btn { border-radius: 10px !important; }
+.ludis-auth-box, .ludis-inapp-box { border-radius: 18px !important; box-shadow: 0 22px 60px rgba(37,52,80,.14) !important; }
+
+.ludis-ready-transition { background: rgba(246,248,252,.95) !important; }
+.ludis-ready-badge {
+  border: 1px solid var(--line) !important;
+  border-radius: 17px !important;
+  background: rgba(255,255,255,.92) !important;
+  box-shadow: 0 14px 36px rgba(37,52,80,.09) !important;
+}
+.ludis-ready-dice {
+  width: 46px !important;
+  height: 46px !important;
+  border: 1px solid #f0e3d4 !important;
+  border-radius: 14px !important;
+  background: #fff5e9 !important;
+  color: inherit !important;
+  font-size: 27px !important;
+}
+
+@media (max-width: 720px) {
+  .wrap { width: min(100% - 22px, 1240px) !important; }
+  .topbar { align-items: flex-start !important; }
+  .logo { width: 38px !important; height: 38px !important; }
+  .ultra-summary { gap: 6px !important; }
+  .ultra-card { border-radius: 10px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:hover { transform: none !important; }
+}
