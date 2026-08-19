@@ -13,7 +13,6 @@
   let eventClaimsData = [];
   let blacklistRows = [];
   let bulkBlacklistPreviewRows = [];
-  const BLACKLIST_PARSER_VERSION = "3.2.0";
   let adminLoginLogsData = [];
   let adminBlockedIpsData = [];
   let cachedAdminIpInfo = null;
@@ -1187,45 +1186,29 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
       .replace(/\r/g, "")
       .replace(/[：]/g, ":")
       .replace(/\uFE0F/g, "")
-      .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
-      .trim();
-  }
-
-  function stripBulkMarkdown(line) {
-    return cleanBulkLine(line)
-      .replace(/^\s*#{1,6}\s*/, "")
-      .replace(/^\s*\d+[.)]\s*/, "")
-      .replace(/^\s*[-+•>]\s*/, "")
-      .replace(/\*\*/g, "")
-      .replace(/__/g, "")
-      .replace(/(?<!\w)[*_](?!\w)/g, "")
-      .replace(/\s+/g, " ")
+      .replace(/[\u200B-\u200D\uFEFF]/g, "")
       .trim();
   }
 
   function normalizeBulkBlacklistText(raw) {
-    let text = String(raw || "")
-      .replace(/\r\n?/g, "\n")
-      .replace(/[：]/g, ":")
-      .replace(/💰/g, "");
-    text = text.replace(/\s*(가해자\s*번호|가해자\s*닉네임|피해자\s*번호|피해자\s*닉네임|피해\s*(?:금액|규모)|고유번호|닉네임|상태|사유|등록일자?|등록일시|일자|날짜|물품\s*\/\s*가격)\s*[:：]?/g, "\n$1:");
+    let text = String(raw || "").replace(/\r\n?/g, "\n").replace(/[：]/g, ":").replace(/💰/g, "");
+    text = text.replace(/\s*(가해자\s*번호|가해자\s*닉네임|피해자\s*번호|피해자\s*닉네임|피해\s*금액|고유번호|닉네임|상태|사유|물품\s*\/\s*가격)\s*[:：]?/g, "\n$1:");
     return text.replace(/\n{3,}/g, "\n\n").trim();
   }
 
   function getBulkKeyValue(line) {
-    const original = stripBulkMarkdown(line).replace(/^[-•*]+\s*/, "");
+    const original = cleanBulkLine(line).replace(/^[-•*]+\s*/, "");
     const compact = original.replace(/\s+/g, "");
     const rules = [
       ["offenderNumber", /^가해자번호:?(.*)$/],
       ["offenderNickname", /^가해자닉네임:?(.*)$/],
       ["victimNumber", /^피해자번호:?(.*)$/],
       ["victimNickname", /^피해자닉네임:?(.*)$/],
-      ["damageAmount", /^피해(?:금액|규모):?(.*)$/],
+      ["damageAmount", /^피해금액:?(.*)$/],
       ["userNumber", /^고유번호:?(.*)$/],
       ["nickname", /^닉네임:?(.*)$/],
       ["warningLevel", /^상태:?(.*)$/],
       ["publicReason", /^사유:?(.*)$/],
-      ["registrationDate", /^(?:등록일자?|등록일시|일자|날짜):?(.*)$/],
       ["itemPrice", /^물품\/?가격:?(.*)$/]
     ];
     for (const [key, re] of rules) {
@@ -1234,7 +1217,7 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
         let value = m[1] || "";
         const colonIndex = original.indexOf(":");
         if (colonIndex >= 0) value = original.slice(colonIndex + 1).trim();
-        return { key, value: stripBulkMarkdown(value) };
+        return { key, value: cleanBulkLine(value) };
       }
     }
     return null;
@@ -1251,315 +1234,33 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
   }
 
   function normalizeBulkAmount(value) {
-    let v = stripBulkMarkdown(String(value || "").replace(/^금액\s*[:：]?\s*/, ""));
-    return v.replace(/\s+/g, " ").trim();
+    let v = String(value || "").replace(/^금액\s*[:：]?\s*/, "").trim();
+    v = v.replace(/\s+/g, " ");
+    return v;
   }
 
-  function parseBlacklistPerson(value) {
-    const v = stripBulkMarkdown(value)
-      .replace(/^@블랙알림\s*/i, "")
-      .replace(/\s*블랙리스트\s*등재.*$/i, "")
-      .trim();
-    if (!v) return { nickname:"", userNumber:"" };
-
-    let m = v.match(/^(.+?)\s*\(\s*([0-9]{1,20})\s*번?\s*\)/);
-    if (!m) m = v.match(/^(.+?)\s+([0-9]{1,20})\s*번(?:\s|$)/);
-    if (!m) return { nickname:v, userNumber:"" };
-    return {
-      nickname: stripBulkMarkdown(m[1]),
-      userNumber: String(m[2] || "").replace(/\D/g, "")
-    };
-  }
-
-  function extractBulkRegistrationDate(value) {
-    const line = stripBulkMarkdown(value);
-    if (!line) return "";
-
-    // 블랙알리미에서 실제로 복사되는 형식: 2026-06-19 오후 11:44
-    // 구분자가 / 또는 . 인 변형과 초 단위까지도 허용한다.
-    const m = line.match(/(20\d{2})[.\/-](\d{1,2})[.\/-](\d{1,2})\s*(오전|오후|AM|PM|am|pm)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-    if (!m) return "";
-    const period = m[4] ? String(m[4]).toUpperCase().replace("AM", "오전").replace("PM", "오후") : "";
-    const date = `${m[1]}-${String(m[2]).padStart(2, "0")}-${String(m[3]).padStart(2, "0")}`;
-    const time = `${String(m[5]).padStart(2, "0")}:${m[6]}${m[7] ? `:${m[7]}` : ""}`;
-    return `${date}${period ? ` ${period}` : ""} ${time}`.trim();
-  }
-
-  function buildBulkAdminNote(report = {}) {
-    // 요청사항: 피해자 정보는 관리자 메모를 포함해 어디에도 저장하지 않는다.
-    // DB 스키마/RPC는 건드리지 않는 조건이므로 원문 등록일자는 관리자 메모에 보존한다.
+  function buildBulkAdminNote(report) {
     const notes = [];
-    if (report.registrationDate) notes.push(`원문 등록일: ${report.registrationDate}`);
-    notes.push("관리자 원문 붙여넣기 등록");
+    if (report.victimNickname || report.victimNumber) {
+      notes.push(`피해자: ${report.victimNickname || "닉네임 없음"}${report.victimNumber ? ` (${report.victimNumber}번)` : ""}`);
+    }
+    notes.push("관리자 일괄 붙여넣기 등록");
     return notes.join(" / ");
   }
 
   function makeBulkRow(report, sourceType) {
-    const nickname = stripBulkMarkdown(report.nickname || report.offenderNickname || "");
+    const nickname = cleanBulkLine(report.nickname || report.offenderNickname || "");
     const userNumber = String(report.userNumber || report.offenderNumber || "").replace(/[^0-9]/g, "").trim();
     const itemPrice = normalizeBulkAmount(report.itemPrice || report.damageAmount || "");
-    const publicReason = stripBulkMarkdown(report.publicReason || "주사위 패배 후 종료") || "주사위 패배 후 종료";
+    const publicReason = cleanBulkLine(report.publicReason || "주사위 패배 후 종료") || "주사위 패배 후 종료";
     const warningLevel = normalizeWarningLevel(report.warningLevel || "위험");
-    const registrationDate = extractBulkRegistrationDate(report.registrationDate || "");
-    const adminNote = stripBulkMarkdown(report.adminNote || buildBulkAdminNote({ ...report, registrationDate }));
+    const adminNote = cleanBulkLine(report.adminNote || buildBulkAdminNote(report));
     if (!nickname || !userNumber) return null;
-    return { nickname, userNumber, itemPrice, publicReason, warningLevel, registrationDate, adminNote, sourceType };
-  }
-
-  function getFreedomLabel(line) {
-    const original = stripBulkMarkdown(line);
-    const m = original.match(/^(가해자|피해\s*(?:규모|금액)|사유|피해자)\s*:?\s*(.*)$/);
-    if (!m) return null;
-    const label = m[1].replace(/\s+/g, "");
-    const key = label === "가해자" ? "offender"
-      : label === "사유" ? "reason"
-      : label === "피해자" ? "victim"
-      : "damage";
-    return { key, value: stripBulkMarkdown(m[2] || "") };
-  }
-
-
-  function parseBlackAlertHeaderBlocks(rawText) {
-    // 블랙알리미 원문에서 각 "닉네임 (번호번) 블랙리스트 등재 · 피해규모" 제목을
-    // 사건 경계로 사용한다. 여러 건을 통째로 붙여넣었을 때 라벨 파서가 한 건으로
-    // 뭉치는 상황을 막기 위한 가장 강한 분리 규칙이다.
-    const lines = String(rawText || "")
-      .replace(/\r\n?/g, "\n")
-      .replace(/\u00A0/g, " ")
-      .split("\n")
-      .map(stripBulkMarkdown)
-      .filter(Boolean);
-
-    const headerRe = /^(?:@블랙알림\s*)?(.+?)\s*\(\s*([0-9]{1,20})\s*번?\s*\)\s*블랙리스트\s*등재(?:\s*[·\-–—]\s*(.+))?$/i;
-    const starts = [];
-    for (let i = 0; i < lines.length; i++) {
-      const m = lines[i].match(headerRe);
-      if (m) starts.push({ index:i, match:m });
-    }
-    if (!starts.length) return [];
-
-    const rows = [];
-    for (let sIndex = 0; sIndex < starts.length; sIndex++) {
-      const start = starts[sIndex];
-      const end = sIndex + 1 < starts.length ? starts[sIndex + 1].index : lines.length;
-      const block = lines.slice(start.index, end);
-      const header = start.match;
-      const report = {
-        offenderNickname: stripBulkMarkdown(header[1] || ""),
-        offenderNumber: String(header[2] || "").replace(/\D/g, ""),
-        damageAmount: normalizeBulkAmount(header[3] || ""),
-        publicReason: "",
-        registrationDate: ""
-      };
-
-      let pending = "";
-      let victimValueConsumed = false;
-      let sawVictimLabel = false;
-
-      for (let i = 1; i < block.length; i++) {
-        const line = block[i];
-        if (/^프리덤\s*블랙리스트\s*등재$/i.test(line)) continue;
-        if (/블랙알리미앱/i.test(line)) continue;
-
-        const label = getFreedomLabel(line);
-        if (label) {
-          if (label.key === "offender") {
-            if (label.value) {
-              const person = parseBlacklistPerson(label.value);
-              if (person.nickname) report.offenderNickname = person.nickname;
-              if (person.userNumber) report.offenderNumber = person.userNumber;
-              pending = "";
-            } else {
-              pending = "offender";
-            }
-          } else if (label.key === "damage") {
-            if (label.value) {
-              report.damageAmount = normalizeBulkAmount(label.value);
-              pending = "";
-            } else {
-              pending = "damage";
-            }
-          } else if (label.key === "reason") {
-            if (label.value) {
-              report.publicReason = stripBulkMarkdown(label.value);
-              pending = "";
-            } else {
-              pending = "reason";
-            }
-          } else if (label.key === "victim") {
-            // 피해자 값은 저장하지 않고, 피해자 다음에 나오는 첫 날짜만 원문 등록일로 사용한다.
-            sawVictimLabel = true;
-            victimValueConsumed = !!label.value;
-            pending = label.value ? "" : "victim";
-          }
-          continue;
-        }
-
-        if (pending === "offender") {
-          const person = parseBlacklistPerson(line);
-          if (person.nickname) report.offenderNickname = person.nickname;
-          if (person.userNumber) report.offenderNumber = person.userNumber;
-          pending = "";
-          continue;
-        }
-        if (pending === "damage") {
-          report.damageAmount = normalizeBulkAmount(line);
-          pending = "";
-          continue;
-        }
-        if (pending === "reason") {
-          report.publicReason = stripBulkMarkdown(line);
-          pending = "";
-          continue;
-        }
-        if (pending === "victim") {
-          // 피해자 이름/번호는 위치 확인용으로만 소비하고 저장하지 않는다.
-          pending = "";
-          victimValueConsumed = true;
-          continue;
-        }
-
-        const registrationDate = extractBulkRegistrationDate(line);
-        if (registrationDate && !report.registrationDate) {
-          // 정상 원문은 피해자 다음에 등록일이 온다. 피해자 라벨이 유실된 복사본은
-          // 사건 블록 안의 첫 날짜를 보조값으로 사용한다.
-          if (!sawVictimLabel || victimValueConsumed) report.registrationDate = registrationDate;
-        }
-      }
-
-      const row = makeBulkRow(report, "black-alert-header-block");
-      if (row) rows.push(row);
-    }
-    return rows;
-  }
-
-  function parseFreedomBlacklistText(rawText) {
-    const lines = String(rawText || "")
-      .replace(/\r\n?/g, "\n")
-      .split("\n")
-      .map(stripBulkMarkdown)
-      .filter(Boolean);
-
-    const rows = [];
-    const hasStructuredOffenderLabel = lines.some(line => getFreedomLabel(line)?.key === "offender");
-    let report = null;
-    let pending = "";
-    let sectionHeaderDate = "";
-
-    function ensureReport() {
-      if (!report) report = {};
-      return report;
-    }
-
-    function pushCurrent() {
-      if (!report) return;
-      const row = makeBulkRow(report, "black-alert-markdown");
-      if (row) rows.push(row);
-      report = null;
-      pending = "";
-    }
-
-    function setOffender(value) {
-      const person = parseBlacklistPerson(value);
-      if (person.nickname) ensureReport().offenderNickname = person.nickname;
-      if (person.userNumber) ensureReport().offenderNumber = person.userNumber;
-      if (sectionHeaderDate && !ensureReport().registrationDate) ensureReport().registrationDate = sectionHeaderDate;
-    }
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // 디스코드/마크다운 섹션 헤더의 날짜도 보조값으로 기억한다.
-      // 각 사건 하단의 등록일자가 있으면 아래에서 그 값으로 덮어쓴다.
-      if (/블랙알리미앱/i.test(line)) {
-        const headerDate = extractBulkRegistrationDate(line);
-        if (headerDate) sectionHeaderDate = headerDate;
-        continue;
-      }
-
-      const label = getFreedomLabel(line);
-
-      if (label) {
-        if (label.key === "offender") {
-          if (report && (report.offenderNumber || report.offenderNickname) && (report.damageAmount || report.publicReason)) pushCurrent();
-          ensureReport();
-          if (sectionHeaderDate && !report.registrationDate) report.registrationDate = sectionHeaderDate;
-          if (label.value) {
-            setOffender(label.value);
-            pending = "";
-          } else {
-            pending = "offender";
-          }
-        } else if (label.key === "damage") {
-          ensureReport();
-          if (label.value) {
-            report.damageAmount = label.value;
-            pending = "";
-          } else {
-            pending = "damage";
-          }
-        } else if (label.key === "reason") {
-          ensureReport();
-          if (label.value) {
-            report.publicReason = label.value;
-            pending = "";
-          } else {
-            pending = "reason";
-          }
-        } else if (label.key === "victim") {
-          // 피해자는 완전히 무시한다. 라벨 뒤 값이 다음 줄에 있으면 그 한 줄도 건너뛴다.
-          pending = label.value ? "" : "victim";
-        }
-        continue;
-      }
-
-      if (pending === "offender") {
-        setOffender(line);
-        pending = "";
-        continue;
-      }
-      if (pending === "damage") {
-        ensureReport().damageAmount = line;
-        pending = "";
-        continue;
-      }
-      if (pending === "reason") {
-        ensureReport().publicReason = line;
-        pending = "";
-        continue;
-      }
-      if (pending === "victim") {
-        // 피해자 이름/번호는 저장하지 않는다.
-        pending = "";
-        continue;
-      }
-
-      // 사건 하단의 등록일자. 피해자 다음에 오는 날짜를 가장 신뢰한다.
-      const registrationDate = extractBulkRegistrationDate(line);
-      if (registrationDate && report && (report.offenderNumber || report.offenderNickname)) {
-        report.registrationDate = registrationDate;
-        continue;
-      }
-
-      // 라벨이 누락된 복사본도 "닉네임 (번호번) 블랙리스트 등재 · 피해규모" 제목에서 보조 인식한다.
-      const header = line.match(/^(?:@블랙알림\s*)?(.+?)\s*\(\s*([0-9]{1,20})\s*번?\s*\)\s*블랙리스트\s*등재\s*[·\-–—]\s*(.+)$/i);
-      if (!hasStructuredOffenderLabel && header && (!report || (!report.offenderNumber && !report.offenderNickname))) {
-        if (report && (report.offenderNumber || report.offenderNickname)) pushCurrent();
-        report = {
-          offenderNickname: stripBulkMarkdown(header[1]),
-          offenderNumber: String(header[2] || "").replace(/\D/g, ""),
-          damageAmount: normalizeBulkAmount(header[3]),
-          registrationDate: sectionHeaderDate || ""
-        };
-      }
-    }
-
-    pushCurrent();
-    return rows;
+    return { nickname, userNumber, itemPrice, publicReason, warningLevel, adminNote, sourceType };
   }
 
   function parseKeyedBulkBlacklist(normalizedText) {
-    const lines = normalizedText.split("\n").map(stripBulkMarkdown).filter(Boolean);
+    const lines = normalizedText.split("\n").map(cleanBulkLine).filter(Boolean);
     const rows = [];
     let report = null;
     let sourceType = "keyed";
@@ -1587,8 +1288,7 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
         value = lines[i + 1];
         i++;
       }
-      // 피해자 관련 필드는 파싱은 하되 저장 객체에는 넣지 않는다.
-      if (!kv.key.startsWith("victim")) report[kv.key] = stripBulkMarkdown(value);
+      report[kv.key] = cleanBulkLine(value);
     }
     pushCurrent();
     return rows;
@@ -1598,7 +1298,7 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
     const lines = String(rawText || "")
       .replace(/\r\n?/g, "\n")
       .split("\n")
-      .map(stripBulkMarkdown)
+      .map(cleanBulkLine)
       .filter(Boolean)
       .filter(line => !isBulkKeyLine(line));
     const rows = [];
@@ -1624,7 +1324,7 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
           itemPrice,
           publicReason: "주사위 패배 후 종료",
           warningLevel: "위험",
-          adminNote: "관리자 원문 붙여넣기 등록"
+          adminNote: "관리자 일괄 붙여넣기 등록"
         }, "simple-4-line");
         if (row) rows.push(row);
       } else {
@@ -1634,12 +1334,11 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
     return rows;
   }
 
-  function mergeBulkRows(...groups) {
+  function mergeBulkRows(keyedRows, simpleRows) {
     const rows = [];
     const seen = new Set();
-    groups.flat().forEach((row) => {
-      if (!row) return;
-      const key = [row.nickname, row.userNumber, row.itemPrice, row.publicReason, row.warningLevel, row.registrationDate || ""].join("|");
+    [...keyedRows, ...simpleRows].forEach((row, index) => {
+      const key = [row.nickname, row.userNumber, row.itemPrice, row.publicReason, row.warningLevel, row.adminNote].join("|");
       if (seen.has(key)) return;
       seen.add(key);
       rows.push({ ...row, previewIndex: rows.length + 1 });
@@ -1648,38 +1347,10 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
   }
 
   function parseBulkBlacklistText(rawText) {
-    const headerRows = parseBlackAlertHeaderBlocks(rawText);
-    const freedomRows = parseFreedomBlacklistText(rawText);
-
-    // 블랙알리미 복사본은 제목(블랙리스트 등재)과 가해자 라벨을 서로 독립적으로 읽고
-    // 결과를 합친다. 한쪽 파서가 줄바꿈/마크다운 변형 때문에 한 건만 잡아도 다른 쪽이
-    // 전체 사건을 복구할 수 있다. 완전히 같은 사건은 mergeBulkRows에서 한 번만 남긴다.
-    if (headerRows.length || freedomRows.length) return mergeBulkRows(headerRows, freedomRows);
-
     const normalized = normalizeBulkBlacklistText(rawText);
     const keyedRows = parseKeyedBulkBlacklist(normalized);
     const simpleRows = parseSimpleBulkBlacklist(rawText);
     return mergeBulkRows(keyedRows, simpleRows);
-  }
-
-  function updateBulkParseStatus(rows, errorMessage="") {
-    const status = $("blackBulkParseStatus");
-    if (!status) return;
-    if (errorMessage) {
-      status.className = "black-paste-status error";
-      status.innerHTML = `<strong>인식 실패</strong><span>${escapeHtml(errorMessage)}</span>`;
-      return;
-    }
-    if (!rows || !rows.length) {
-      status.className = "black-paste-status";
-      status.innerHTML = `<strong>자동 인식 대기</strong><span>가해자 · 피해 규모 · 사유 형식의 원문을 붙여넣어 주세요.</span>`;
-      return;
-    }
-    const completeCount = rows.filter(r => r.nickname && r.userNumber && r.publicReason).length;
-    const withDamage = rows.filter(r => r.itemPrice).length;
-    const withDate = rows.filter(r => r.registrationDate).length;
-    status.className = "black-paste-status success";
-    status.innerHTML = `<strong>${rows.length.toLocaleString("ko-KR")}건 인식</strong><span>가해자 ${completeCount}건 · 피해 규모 ${withDamage}건 · 등록일자 ${withDate}건 · 피해자 무시 · 파서 v${BLACKLIST_PARSER_VERSION}</span>`;
   }
 
   function renderBulkBlacklistPreview(rows, errorMessage="") {
@@ -1687,13 +1358,12 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
     const btn = $("blackBulkRegisterBtn");
     if (!box) return;
     if (btn) btn.disabled = !(rows && rows.length);
-    updateBulkParseStatus(rows, errorMessage);
     if (errorMessage) {
       box.innerHTML = `<strong>미리보기 실패</strong><span class="muted">${escapeHtml(errorMessage)}</span>`;
       return;
     }
     if (!rows || !rows.length) {
-      box.innerHTML = `<strong>미리보기</strong><span class="muted">변환된 항목이 없습니다. “가해자 / 피해 규모 / 사유” 형식 또는 기존 닉네임/고유번호 형식을 확인하세요.</span>`;
+      box.innerHTML = `<strong>미리보기</strong><span class="muted">변환된 항목이 없습니다. 닉네임/고유번호 또는 가해자 번호/가해자 닉네임 형식이 포함되어 있는지 확인하세요.</span>`;
       return;
     }
 
@@ -1703,26 +1373,26 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
     }, {});
     const cards = rows.map((r, idx) => {
       const dup = duplicateMap[r.userNumber] > 1 ? `<div class="small" style="color:#92400e">같은 고유번호가 이번 붙여넣기 안에 ${duplicateMap[r.userNumber]}건 있습니다. 각각 새 사건으로 등록됩니다.</div>` : "";
-      return `<article class="code-card black-paste-preview-card" style="box-shadow:none">
+      return `<article class="code-card" style="box-shadow:none">
         <div class="code-card-top">
           <div>
             <div class="code-title"><span class="badge revoked">${idx + 1}</span><span class="code">${escapeHtml(r.userNumber)}번</span><b>${escapeHtml(r.nickname)}</b></div>
             <div class="code-sub">${escapeHtml(r.publicReason)} · ${escapeHtml(r.warningLevel)}</div>
           </div>
         </div>
-        <div class="code-info-grid black-paste-preview-grid">
-          <div class="code-info"><small>가해자</small><strong>${escapeHtml(r.nickname)} (${escapeHtml(r.userNumber)}번)</strong></div>
-          <div class="code-info"><small>피해 규모</small><strong>${escapeHtml(r.itemPrice || "-")}</strong></div>
-          <div class="code-info"><small>사유</small><strong>${escapeHtml(r.publicReason || "-")}</strong></div>
-          <div class="code-info"><small>원문 등록일</small><strong>${escapeHtml(r.registrationDate || "-")}</strong></div>
+        <div class="code-info-grid">
+          <div class="code-info"><small>고유번호</small><strong>${escapeHtml(r.userNumber)}</strong></div>
+          <div class="code-info"><small>닉네임</small><strong>${escapeHtml(r.nickname)}</strong></div>
+          <div class="code-info"><small>물품/가격</small><strong>${escapeHtml(r.itemPrice || "-")}</strong></div>
+          <div class="code-info"><small>관리자 메모</small><strong>${escapeHtml(r.adminNote || "-")}</strong></div>
         </div>
         ${dup}
       </article>`;
     }).join("");
 
     box.innerHTML = `<strong>미리보기 완료 · ${rows.length.toLocaleString("ko-KR")}건</strong>
-      <span class="muted">가해자/고유번호, 피해 규모, 사유를 등록하고 원문 등록일자는 관리자 메모에 보존합니다. 피해자와 마크다운 문구는 저장하지 않습니다.</span>
-      <div class="code-card-list" style="max-height:520px; margin-top:12px">${cards}</div>`;
+      <span class="muted">아래 형식으로 루디스 거래주의 DB에 저장됩니다. 문제가 없으면 [미리보기 항목 일괄 등록]을 누르세요.</span>
+      <div class="code-card-list" style="max-height:420px; margin-top:12px">${cards}</div>`;
   }
 
   function previewBulkBlacklist() {
@@ -1730,24 +1400,17 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
       const raw = $("blackBulkInput")?.value || "";
       if (!raw.trim()) {
         bulkBlacklistPreviewRows = [];
-        renderBulkBlacklistPreview([]);
+        renderBulkBlacklistPreview([], "붙여넣을 내용을 입력해주세요.");
         return;
       }
       bulkBlacklistPreviewRows = parseBulkBlacklistText(raw);
       renderBulkBlacklistPreview(bulkBlacklistPreviewRows);
+      if (bulkBlacklistPreviewRows.length) toast(`${bulkBlacklistPreviewRows.length}건을 변환했습니다.`);
     } catch (err) {
       console.error("거래주의 일괄 변환 오류", err);
       bulkBlacklistPreviewRows = [];
       renderBulkBlacklistPreview([], err?.message || String(err));
     }
-  }
-
-  let bulkBlacklistPreviewTimer = null;
-  function scheduleBulkBlacklistPreview() {
-    if (bulkBlacklistPreviewTimer) clearTimeout(bulkBlacklistPreviewTimer);
-    bulkBlacklistPreviewTimer = setTimeout(() => {
-      previewBulkBlacklist();
-    }, 180);
   }
 
   function clearBulkBlacklist() {
@@ -1763,10 +1426,10 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
       if (!currentAdmin) return toast("관리자 로그인 후 사용할 수 있습니다.");
       if (!bulkBlacklistPreviewRows.length) previewBulkBlacklist();
       const rows = bulkBlacklistPreviewRows || [];
-      if (!rows.length) return toast("인식된 블랙리스트 항목이 없습니다.");
+      if (!rows.length) return toast("먼저 미리보기 변환을 해주세요.");
 
       const sample = rows.slice(0, 8).map(r => `${r.nickname} / ${r.userNumber}번 / ${r.itemPrice || "-"}`).join("\n");
-      const ok = confirm(`블랙리스트 ${rows.length.toLocaleString("ko-KR")}건을 등록할까요?\n\n${sample}${rows.length > 8 ? "\n..." : ""}\n\n※ 피해자 정보는 저장하지 않습니다.\n※ 같은 고유번호가 있어도 각각 새 사건으로 등록됩니다.\n※ 기존 데이터는 삭제하지 않습니다.`);
+      const ok = confirm(`거래주의 ${rows.length.toLocaleString("ko-KR")}건을 일괄 등록할까요?\n\n${sample}${rows.length > 8 ? "\n..." : ""}\n\n※ 같은 고유번호가 있어도 각각 새 사건으로 등록됩니다.\n※ 기존 데이터는 삭제하지 않습니다.`);
       if (!ok) return;
 
       const btn = $("blackBulkRegisterBtn");
@@ -1782,7 +1445,7 @@ ${sample}${targets.length > 8 ? "\n..." : ""}
           p_user_number: r.userNumber,
           p_public_reason: r.publicReason || "주사위 패배 후 종료",
           p_warning_level: r.warningLevel || "위험",
-          p_admin_note: r.adminNote || "관리자 원문 붙여넣기 등록",
+          p_admin_note: r.adminNote || "관리자 일괄 붙여넣기 등록",
           p_item_price_text: r.itemPrice || null
         });
         if (error || !data?.ok) {
@@ -1890,12 +1553,6 @@ ${recentLines}
     }
   }
 
-  function getOriginalBlacklistRegistrationDate(adminNote) {
-    const note = String(adminNote || "");
-    const m = note.match(/원문 등록일:\s*([^/]+?)(?:\s*\/|$)/);
-    return m ? m[1].trim() : "";
-  }
-
   function renderBlacklistRows(rows) {
     const body = $("blacklistRows");
     if (!body) return;
@@ -1915,7 +1572,6 @@ ${recentLines}
 
     body.innerHTML = list.map(r => {
       const cls = r.is_active ? "revoked" : "expired";
-      const originalRegistrationDate = getOriginalBlacklistRegistrationDate(r.admin_note);
       const statusText = r.is_active ? "활성" : "비활성";
       const actionBtn = r.is_active
         ? `<button type="button" class="warn" onclick="setBlacklistActive('${r.id}', false)">비활성</button>`
@@ -1929,7 +1585,7 @@ ${recentLines}
               <span class="badge used">${escapeHtml(r.warning_level || "위험")}</span>
               ${getBlacklistSameUserSummary(r.user_number).total > 1 ? `<span class="badge expired">누적 ${getBlacklistSameUserSummary(r.user_number).total}건</span>` : ""}
             </div>
-            <div class="code-sub">${escapeHtml(r.nickname || "닉네임 없음")}${originalRegistrationDate ? ` · 원문 등록일 ${escapeHtml(originalRegistrationDate)}` : ""} · DB 등록 ${escapeHtml(fmtDate(r.created_at))} · 등록 관리자 ${escapeHtml(r.created_by_name || "관리자")}${getBlacklistSameUserSummary(r.user_number).total > 1 ? ` · 동일 고유번호 활성 ${getBlacklistSameUserSummary(r.user_number).active}건 / 전체 ${getBlacklistSameUserSummary(r.user_number).total}건` : ""}</div>
+            <div class="code-sub">${escapeHtml(r.nickname || "닉네임 없음")} · 등록 ${escapeHtml(fmtDate(r.created_at))} · 등록 관리자 ${escapeHtml(r.created_by_name || "관리자")}${getBlacklistSameUserSummary(r.user_number).total > 1 ? ` · 동일 고유번호 활성 ${getBlacklistSameUserSummary(r.user_number).active}건 / 전체 ${getBlacklistSameUserSummary(r.user_number).total}건` : ""}</div>
           </div>
           <div class="code-actions">
             ${actionBtn}
@@ -1942,8 +1598,7 @@ ${recentLines}
           <div class="code-info"><small>닉네임 / 고유번호</small><strong>${escapeHtml(r.nickname || "-")}</strong><div class="small">${escapeHtml(r.user_number || "-")}</div></div>
           <div class="code-info"><small>물품 / 가격</small><strong>${escapeHtml(r.item_price_text || "-")}</strong><div class="small">VIP 메인 조회에 표시</div></div>
           <div class="code-info"><small>메인 사유</small><strong>${escapeHtml(r.public_reason || "주사위 패배 후 종료")}</strong><div class="small">주의단계: ${escapeHtml(r.warning_level || "위험")}</div></div>
-          <div class="code-info"><small>원문 등록일</small><strong>${escapeHtml(originalRegistrationDate || "-")}</strong><div class="small">없으면 붙여넣기 당시 날짜를 찾지 못한 항목</div></div>
-          <div class="code-info"><small>등록 관리자</small><strong>${escapeHtml(r.created_by_name || "관리자")}</strong><div class="small">DB 등록 ${escapeHtml(fmtDate(r.created_at))}</div></div>
+          <div class="code-info"><small>등록 관리자</small><strong>${escapeHtml(r.created_by_name || "관리자")}</strong><div class="small">등록 ${escapeHtml(fmtDate(r.created_at))}</div></div>
           <div class="code-info"><small>관리자 메모</small><strong>${escapeHtml(r.admin_note || "-")}</strong><div class="small">관리자 전용 · 수정 ${escapeHtml(fmtDate(r.updated_at))}</div></div>
         </div>
       </article>`;

@@ -1,4 +1,4 @@
-    // LUDIS_AUTO_HELP_INAPP_MODAL_V1
+    // In-app guidance dialog
     let ludisInAppModalResolver = null;
 
     function escapeLudisHtml(value) {
@@ -120,8 +120,7 @@
       };
     } catch (err) {}
 
-    // Ludis soft animation helper
-    // 기존 기록/인증/판매/Supabase 데이터는 건드리지 않고 화면 반응 효과만 담당합니다.
+    // Lightweight feedback after a record is saved.
     function ludisPlayRecordSavedEffect(result) {
       try {
         const panel = document.getElementById("recordInputPanel");
@@ -143,8 +142,8 @@
      * - 사용 이전은 별도 버튼/모달로 처리
      ************************************************************/
     (function setupLudisCleanEntry(){
-      if (window.__LUDIS_CLEAN_ENTRY_V4__) return;
-      window.__LUDIS_CLEAN_ENTRY_V4__ = true;
+      if (window.__LUDIS_ENTRY_BOOTSTRAPPED__) return;
+      window.__LUDIS_ENTRY_BOOTSTRAPPED__ = true;
 
       const FREE_STARTED_KEY = "ludis_free_started_v1";
       let authModalMode = "auth";
@@ -391,11 +390,8 @@
           const params = new URLSearchParams(location.search || "");
           const mode = params.get("mode");
 
-          // 보안 V3:
-          // mode=free는 무료 모드 진입 허용.
-          // mode=vip는 절대 VIP 권한을 만들지 않음.
-          // VIP 권한은 index.html에서 Supabase 인증 성공 후 저장된
-          // dobi_access_id_v1 + ludis_access_tier_v1 값으로만 판단.
+          // Query parameters may enter free mode, but never grant VIP access.
+          // VIP status is derived only from previously validated access data.
           if (mode === "free") {
             localStorage.setItem(FREE_STARTED_KEY, "true");
             localStorage.setItem("ludis_access_tier_v1", "free");
@@ -441,14 +437,12 @@
       CUSTOMER_CENTER_URL: LUDIS_CUSTOMER_CENTER_URL
     } = window.LUDIS_CONFIG;
 
-    // 판매 잠금을 임시로 끄고 싶으면 false로 변경
-    const ENABLE_ACCESS_LOCK = true; // 기존 VIP 인증 확인은 유지하되, 코드가 없어도 무료 모드로 입장합니다.
+    const ENABLE_ACCESS_LOCK = true; // VIP validation remains enabled while free-mode access stays available.
 
     const ACCESS_KEY = "dobi_access_ok_v1";
     const ACCESS_ID_KEY = "dobi_access_id_v1";
     const ACCESS_EXPIRES_KEY = "dobi_access_expires_at_v1";
     const ACCESS_TIER_KEY = "ludis_access_tier_v1";
-    // 보안: 테스트 VIP 코드는 운영본에서 제거했습니다.
     const DEVICE_KEY = "dobi_device_id_v1";
     const RECORD_KEY = "dobi_records_v3_sales_lock";
     const SETTINGS_KEY = "dobi_settings_v3_sales_lock";
@@ -2813,8 +2807,7 @@ ${profitText} / 베팅 ${formatEok(record.amountEok)}
 
     boot();
 
-    // LUDIS_READY_TRANSITION_CLEANUP_V6
-    // 화면전환용 오버레이는 1초 뒤 자동 제거됩니다.
+    // Remove the entry transition after startup.
     window.addEventListener("DOMContentLoaded", () => {
       setTimeout(() => {
         try {
